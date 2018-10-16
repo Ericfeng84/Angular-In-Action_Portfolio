@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import {Stock} from './stocks.model';
+import {LocalStorageService} from './local-storage.service';
+import {AlertService} from './alert.service';
 
 const defaultBalance = 10000;
 
@@ -10,6 +12,11 @@ export class AccountService {
   private  _cost = 0;
   private  _value = 0;
   private  _stocks: Stock[] = [];
+
+  constructor(private localStorageService: LocalStorageService,
+              private alertService: AlertService) {
+  }
+
 
   get balance(): number {return this._balance; }
   get cost(): number {return this._cost; }
@@ -25,6 +32,10 @@ export class AccountService {
       stock.change = 0;
       this._stocks.push(stock);
       this.calculateValue();
+      this.cacheValue();
+      this.alertService.alert(`You bought ${stock.symbol} for $${stock.price}`, 'success');
+    } else {
+      this.alertService.alert(`You have insufficient funds to buy ${stock.symbol}`, 'danger');
     }
   }
 
@@ -38,6 +49,8 @@ export class AccountService {
       stock.change = 0;
       this._stocks.push(stock);
       this.calculateValue();
+      this.cacheValue();
+      this.alertService.alert(`You sold ${stock.symbol} for $${stock.price}`, 'success');
     }
   }
 
@@ -45,6 +58,13 @@ export class AccountService {
   calculateValue(){
     this._value = this._stocks.map(stock => stock.price)
       .reduce((a, b) => a + b , 0);
+  }
+
+  init(){
+    this._stocks = this.localStorageService.get('stocks', []);
+    this._balance = this.localStorageService.get('balance', defaultBalance);
+    this._cost = this.localStorageService.get('cost',0);
+
   }
 
   private debit(amount: number, balance: number) {
@@ -55,10 +75,17 @@ export class AccountService {
     return (balance * 100 + amount * 100) / 100;
   }
 
-  reset(){
+  reset() {
     this._stocks =[];
     this._balance = defaultBalance;
     this._value = this._cost = 0;
+    this.cacheValue();
+  }
+
+  private cacheValue(){
+    this.localStorageService.set('stocks', this.stocks);
+    this.localStorageService.set('balance', this.balance);
+    this.localStorageService.set('cost', this.cost);
   }
 }
 
